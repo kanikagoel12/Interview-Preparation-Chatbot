@@ -201,19 +201,19 @@ with left:
                     eval_result = {"score": 0, "feedback": "Not evaluated (no LLM).", "strengths":[], "weaknesses":[], "suggested_improvement": "", "resources":[]}
                 st.session_state.answers.append(answer_text)
                 st.session_state.evals.append(eval_result)
-                st.experimental_rerun()
+                st.rerun()
     with c2:
         if st.button("Skip"):
             st.session_state.answers.append("")
             st.session_state.evals.append({"score": 0, "feedback":"Skipped", "strengths":[], "weaknesses":[]})
             if st.session_state.current < len(st.session_state.questions)-1:
                 st.session_state.current += 1
-            st.experimental_rerun()
+            st.rerun()
     with c3:
         if st.button("Retry (clear)"):
             # clear current typed answer
             st.session_state[answer_key] = ""
-            st.experimental_rerun()
+            st.rerun()
 
 with right:
     st.subheader("Live Feedback")
@@ -242,7 +242,7 @@ with right:
         if st.button("Next Question"):
             if st.session_state.current < len(st.session_state.questions)-1:
                 st.session_state.current += 1
-                st.experimental_rerun()
+                st.rerun()
     else:
         st.info("Submit an answer to see feedback here.")
 
