@@ -1,11 +1,7 @@
-# main.py
-"""
-Streamlit frontend for LLM Interview Simulator (Frontend-only prototype).
-- Mock mode (no OpenAI) so you can work and test UI immediately.
-- Later you can swap generate_questions/evaluate_answer to call your backend or OpenAI.
-"""
+# main.py (Streamlit frontend) — fixed to avoid out-of-bounds errors
+import requests
 import streamlit as st
-import random, json, io, datetime, textwrap
+import random, json, io, datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
@@ -27,7 +23,17 @@ QUESTION_BANK = {
         ],
         "Machine Learning": [
             {"id": 8, "question":"How would you evaluate and compare two models with different class imbalance?", "type":"ml","difficulty":"medium","hint":"Precision/recall, ROC, PR curves."}
+        ],
+        "System Design": [
+        {"id": 6, "question": "Design a URL shortener (like bit.ly).", "type": "technical", "difficulty": "hard", "hint": "Think database, hashing, scalability."},
+        {"id": 7, "question": "How would you design a scalable chat system?", "type": "technical", "difficulty": "hard", "hint": "Message queues, storage, real-time updates."},
+        ],
+        "Full Stack Development": [
+            {"id": 8, "question": "What is the role of middleware in Express.js?", "type": "technical", "difficulty": "medium", "hint": "Request/response lifecycle."},
+            {"id": 9, "question": "How do you secure a full-stack web application?", "type": "technical", "difficulty": "hard", "hint": "Authentication, authorization, input validation."},
         ]
+
+
     },
     "Product Manager": {
         "General": [
@@ -56,31 +62,19 @@ def generate_questions(role, domain, mode, n=3):
     return random.sample(q_list, n)
 
 def mock_evaluate_answer(question_text, answer_text, mode):
-    """Heuristic mock evaluator. Returns a JSON-like dict with score and feedback.
-       This is a frontend helper so you can see the flow without LLM."""
-    # simple heuristics: longer answers + presence of keywords -> higher score
     score = 4.0
     words = answer_text.strip().split()
     if len(words) > 15: score += 2.0
     if len(words) > 60: score += 2.0
-    # look for some keywords (very naive)
     key_terms = ["complexity","time","space","edge case","scalable","tests","trade-off","STAR","impact"]
-    lower = answer_text.lower()
-    matches = sum(1 for k in key_terms if k in lower)
-    score += min(matches, 2)  # small boost for keywords
+    matches = sum(1 for k in key_terms if k in answer_text.lower())
+    score += min(matches, 2)
     score = max(0, min(10, score))
-    # strengths/weaknesses basic
-    strengths = []
-    weaknesses = []
-    if len(words) > 15:
-        strengths.append("Good detail and explanation")
-    else:
-        weaknesses.append("Answer too short — add more specifics")
-    if matches:
-        strengths.append("Used relevant keywords")
-    else:
-        weaknesses.append("Missing technical keywords or trade-offs")
-    feedback = "Nice attempt. " + ("Expand with edge-cases and complexity analysis." if "complexity" not in lower else "Good complexity analysis.")
+    strengths = ["Good detail and explanation"] if len(words) > 15 else []
+    weaknesses = ["Answer too short — add more specifics"] if len(words) <= 15 else []
+    strengths += ["Used relevant keywords"] if matches else []
+    weaknesses += ["Missing technical keywords or trade-offs"] if not matches else []
+    feedback = "Nice attempt. " + ("Expand with edge-cases and complexity analysis." if "complexity" not in answer_text.lower() else "Good complexity analysis.")
     suggested = "Mention time/space complexity and give one edge-case or test example."
     resources = ["Cracking the Coding Interview (book)", "System Design Primer (GitHub)"]
     return {
@@ -125,9 +119,8 @@ def make_pdf_bytes(session_meta, qa_list):
     return buf.getvalue()
 
 # ----------------- Streamlit UI -----------------
-st.set_page_config(page_title="LLM Interview Simulator", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="LLM Interview Simulator", layout="wide")
 st.title("🤖 LLM Interview Simulator")
-st.markdown("A frontend prototype. Use **Mock Mode** to try features without an LLM key.")
 
 # Sidebar controls
 with st.sidebar:
@@ -138,20 +131,18 @@ with st.sidebar:
     domain = st.selectbox("Domain", domains)
     mode = st.radio("Mode", ["Technical", "Behavioral"])
     n_q = st.slider("Number of questions", 1, 5, 3)
-    mock_mode = st.checkbox("Mock Mode (no LLM, frontend-only)", value=True)
+    mock_mode = st.checkbox("Mock Mode ", value=True)
     st.markdown("---")
-    st.caption("Tip: Start in Mock Mode to test the full flow. Later connect to backend/LLM.")
-
-# session state initialization
-if "questions" not in st.session_state:
+# Session state initialization
+if "questions" not in st.session_state: 
     st.session_state.questions = []
-if "current" not in st.session_state:
+if "current" not in st.session_state: 
     st.session_state.current = 0
-if "answers" not in st.session_state:
+if "answers" not in st.session_state: 
     st.session_state.answers = []
-if "evals" not in st.session_state:
+if "evals" not in st.session_state: 
     st.session_state.evals = []
-if "started" not in st.session_state:
+if "started" not in st.session_state: 
     st.session_state.started = False
 
 # Start / Restart
@@ -162,6 +153,7 @@ if st.sidebar.button("Start / Restart Interview"):
     st.session_state.evals = []
     st.session_state.started = True
 
+# Stop if not started or no questions
 if not st.session_state.started or not st.session_state.questions:
     st.info("Configure the interview in the sidebar and click **Start / Restart Interview**.")
     st.stop()
@@ -169,8 +161,24 @@ if not st.session_state.started or not st.session_state.questions:
 # Layout: left (main question & input) and right (history/feedback)
 left, right = st.columns([2,1])
 
+# Ensure questions is not empty before accessing
+if st.session_state.questions:
+    st.session_state.current = max(0, min(st.session_state.current, len(st.session_state.questions) - 1))
+    q_index = st.session_state.current
+    question_obj = st.session_state.questions[q_index]
+else:
+    # Just in case, fallback safe stop
+    st.info("No questions available, please start the interview.")
+    st.stop()
+
+
+# Ensure current index is within bounds
+st.session_state.current = min(st.session_state.current, len(st.session_state.questions)-1)
 q_index = st.session_state.current
 question_obj = st.session_state.questions[q_index]
+
+# ----- Question & Answer UI -----
+
 progress_pct = int((q_index / len(st.session_state.questions)) * 100)
 with left:
     st.subheader(f"Question {q_index+1} / {len(st.session_state.questions)}")
@@ -193,30 +201,67 @@ with left:
             if not answer_text:
                 st.warning("Please write an answer before submitting.")
             else:
-                # evaluate (mock or placeholder)
                 if mock_mode:
+                    # Use your existing mock evaluator
                     eval_result = mock_evaluate_answer(question_obj.get('question'), answer_text, mode)
                 else:
-                    st.warning("Not connected to LLM — enable Mock Mode or connect backend.")
-                    eval_result = {"score": 0, "feedback": "Not evaluated (no LLM).", "strengths":[], "weaknesses":[], "suggested_improvement": "", "resources":[]}
-                st.session_state.answers.append(answer_text)
-                st.session_state.evals.append(eval_result)
-                st.rerun()
+                    # Call backend API
+                    import requests
+                    backend_url = "http://127.0.0.1:8000/evaluate"  # your backend endpoint
+                    payload = {
+                        "question": question_obj.get("question"),
+                        "answer": answer_text,
+                        "mode": mode
+                    }
+                    try:
+                        resp = requests.post(backend_url, json=payload)
+                        resp.raise_for_status()
+                        eval_result = resp.json().get("eval", {"score":0, "feedback":"No feedback", "strengths":[], "weaknesses":[], "suggested_improvement":"", "resources":[]})
+                    except Exception as e:
+                        eval_result = {"score":0, "feedback": f"Backend call failed: {e}", "strengths":[], "weaknesses":[], "suggested_improvement":"", "resources":[]}
+
+                # Ensure answers/evals lists have correct length
+                if len(st.session_state.answers) > q_index:
+                    st.session_state.answers[q_index] = answer_text
+                else:
+                    st.session_state.answers.append(answer_text)
+
+                if len(st.session_state.evals) > q_index:
+                    st.session_state.evals[q_index] = eval_result
+                else:
+                    st.session_state.evals.append(eval_result)
+
+                # Move to next question
+                if st.session_state.current < len(st.session_state.questions)-1:
+                    st.session_state.current += 1
+
+                st.session_state.update()  # refresh page to show feedback
+
     with c2:
         if st.button("Skip"):
-            st.session_state.answers.append("")
-            st.session_state.evals.append({"score": 0, "feedback":"Skipped", "strengths":[], "weaknesses":[]})
-            if st.session_state.current < len(st.session_state.questions)-1:
+            while len(st.session_state.answers) <= q_index:
+                st.session_state.answers.append("")
+
+            while len(st.session_state.evals) <= q_index:
+                st.session_state.evals.append({"score": 0, "feedback":"", "strengths":[], "weaknesses":[]})
+
+            st.session_state.evals[q_index] = {"score": 0, "feedback":"Skipped", "strengths":[], "weaknesses":[]}
+
+            if q_index < len(st.session_state.questions)-1:
                 st.session_state.current += 1
-            st.rerun()
+            st.session_state.update()
     with c3:
         if st.button("Retry (clear)"):
-            # clear current typed answer
             st.session_state[answer_key] = ""
-            st.rerun()
+            st.session_state.update()
 
 with right:
     st.subheader("Live Feedback")
+    if q_index < len(st.session_state.evals):
+        ev = st.session_state.evals[q_index]
+    else:
+        ev = {}
+
     # show last evaluation if available
     last_idx = len(st.session_state.evals) - 1
     if last_idx >= 0 and last_idx >= q_index:
