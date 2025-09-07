@@ -27,8 +27,8 @@ Includes a FastAPI backend for evaluation using OpenAI's GPT API.
 
 1. Clone the repository
    ```bash
-   git clone <your_repo_url>
-   cd <repo_folder>
+   git clone https://github.com/kanikagoel12/Interview-Preparation-Chatbot.git
+   cd Interview-Preparation-Chatbot
 
 2. Create a virtual environment
    ```bash
