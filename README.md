@@ -48,10 +48,10 @@ Includes a FastAPI backend for evaluation using OpenAI's GPT API.
 5. Set up environment variables
 
    Copy .env.example to .env inside the backend folder:
-
+   ```bash
    copy backend\.env.example backend\.env  # Windows
    cp backend/.env.example backend/.env    # Linux / Mac
-
+-
    Add your OpenAI API key in backend/.env:
 
    OPENAI_API_KEY=your_openai_api_key_here
