@@ -25,54 +25,53 @@ Includes a FastAPI backend for evaluation using OpenAI's GPT API.
 
 ## Setup Instructions
 
-1. **Clone the repository**
+1. Clone the repository
    ```bash
    git clone <your_repo_url>
    cd <repo_folder>
 
 2. Create a virtual environment
-
-python -m venv venv
+   ```bash
+   python -m venv venv
 
 3. Activate the environment
-
-Windows:
-venv\Scripts\activate
-
-Linux / Mac:
-source venv/bin/activate
-
-4. Install dependencies
-
-pip install -r requirements.txt
+   ```bash
+   Windows:
+   venv\Scripts\activate
+   Linux / Mac:
+   source venv/bin/activate
+   
+5. Install dependencies
+   ```bash
+   pip install -r requirements.txt
 
 5. Set up environment variables
 
-Copy .env.example to .env inside the backend folder:
+   Copy .env.example to .env inside the backend folder:
 
-copy backend\.env.example backend\.env  # Windows
-cp backend/.env.example backend/.env    # Linux / Mac
+   copy backend\.env.example backend\.env  # Windows
+   cp backend/.env.example backend/.env    # Linux / Mac
 
-Add your OpenAI API key in backend/.env:
+   Add your OpenAI API key in backend/.env:
 
-OPENAI_API_KEY=your_openai_api_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
 
 ---
 
 ## Running the App
 
 1. Start the backend
-
-cd backend
-uvicorn main:app --reload
+   ```bash
+   cd backend
+   uvicorn main:app --reload
 
 2. Start the frontend  
 Open another terminal in the project root:
-
-streamlit run main.py
+   ```bash
+   streamlit run main.py
 
 3. Open the app in your browser  
-Streamlit usually opens automatically at http://localhost:8501.
+   Streamlit usually opens automatically at http://localhost:8501.
 
 ---
 
